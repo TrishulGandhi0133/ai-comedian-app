@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groq's Unhinged Comedian</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for a modern look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the page */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #111827; /* Dark background */
+        }
+        /* Custom animation for the joke appearing */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        /* Styling for the input placeholder text */
+        ::placeholder {
+            color: #6b7280;
+        }
+        /* Simple loader animation */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="text-white flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl mx-auto bg-gray-900/50 backdrop-blur-sm rounded-2xl shadow-2xl shadow-indigo-500/10 overflow-hidden border border-gray-700">
+        <!-- Header Section -->
+        <header class="p-6 sm:p-8 text-center border-b border-gray-700">
+            <h1 class="text-3xl sm:text-4xl font-bold text-indigo-400">Groq's Unhinged Comedian</h1>
+            <p class="text-gray-400 mt-2">Give the AI a topic, and it'll write a joke. Simple as that.</p>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="p-6 sm:p-8">
+            <!-- API Key Input Section -->
+            <div class="mb-6">
+                <label for="apiKey" class="block text-sm font-medium text-gray-300 mb-2">1. Your Groq API Key</label>
+                <input type="password" id="apiKey" placeholder="Paste your gsk_... key here. It stays in your browser." class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                <p class="text-xs text-gray-500 mt-1">Your key is never stored or sent anywhere except to Groq.</p>
+            </div>
+
+            <!-- Topic Input Section -->
+            <div class="mb-6">
+                <label for="topic" class="block text-sm font-medium text-gray-300 mb-2">2. What should the AI joke about?</label>
+                <input type="text" id="topic" placeholder="e.g., airline food, cats, JavaScript" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+            </div>
+
+            <!-- Action Button -->
+            <div class="text-center">
+                <button id="getJokeBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg shadow-indigo-500/20 flex items-center justify-center mx-auto w-full sm:w-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                    Tell me a joke!
+                </button>
+            </div>
+
+            <!-- Result Display Area -->
+            <div id="result" class="mt-8 p-6 bg-gray-800/50 rounded-lg border border-gray-700 min-h-[100px] flex items-center justify-center">
+                <p id="placeholderText" class="text-gray-500">The joke will appear here...</p>
+                <div id="loader" class="hidden loader"></div>
+                <p id="jokeText" class="text-gray-200"></p>
+            </div>
+             <!-- Error Message Display -->
+            <div id="error-message" class="mt-4 text-center text-red-400 font-semibold"></div>
+        </main>
+    </div>
+
+    <script>
+        // Get references to all the HTML elements we'll need to interact with
+        const apiKeyInput = document.getElementById('apiKey');
+        const topicInput = document.getElementById('topic');
+        const getJokeBtn = document.getElementById('getJokeBtn');
+        const resultDiv = document.getElementById('result');
+        const placeholderText = document.getElementById('placeholderText');
+        const loader = document.getElementById('loader');
+        const jokeText = document.getElementById('jokeText');
+        const errorMessageDiv = document.getElementById('error-message');
+
+        // Add a click event listener to the button
+        getJokeBtn.addEventListener('click', async () => {
+            const apiKey = apiKeyInput.value.trim();
+            const topic = topicInput.value.trim();
+
+            // --- Input Validation ---
+            if (!apiKey) {
+                showError("Please enter your Groq API key.");
+                return;
+            }
+            if (!topic) {
+                showError("Please enter a topic for the joke.");
+                return;
+            }
+            
+            clearError();
+            
+            // --- UI Loading State ---
+            jokeText.textContent = '';
+            placeholderText.classList.add('hidden');
+            loader.classList.remove('hidden');
+            getJokeBtn.disabled = true;
+            getJokeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            try {
+                // --- Construct the Prompt for the AI ---
+                // This is where we give the AI its personality and instructions.
+                const prompt = `You are a world-class, slightly unhinged, and hilarious stand-up comedian. Your name is 'Groq-o'. A person in the audience has shouted out a topic for you to joke about. The topic is: "${topic}". Please deliver a short, funny, one-paragraph stand-up routine based on this topic. Be creative, punchy, and end with a clear punchline.`;
+
+                // --- Call the Groq API ---
+                const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: "llama3-70b-8192", // A powerful and fast model
+                        messages: [
+                            { role: "system", content: "You are a stand-up comedian." },
+                            { role: "user", content: prompt }
+                        ],
+                        temperature: 0.8, // A bit more creative
+                    })
+                });
+
+                const data = await response.json();
+
+                // --- Handle API Response ---
+                if (!response.ok) {
+                    // If the API returns an error (e.g., invalid key), show it
+                    throw new Error(data.error?.message || 'An unknown API error occurred.');
+                }
+
+                const generatedJoke = data.choices[0]?.message?.content;
+
+                if (generatedJoke) {
+                    // Display the joke with a typing effect
+                    typeWriter(generatedJoke);
+                } else {
+                    showError('The AI returned an empty response. Try again!');
+                }
+
+            } catch (error) {
+                // --- Handle Errors ---
+                console.error('Error fetching joke:', error);
+                showError(error.message);
+            } finally {
+                // --- Reset UI ---
+                loader.classList.add('hidden');
+                getJokeBtn.disabled = false;
+                getJokeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+
+        // --- Helper Functions ---
+
+        // Function to display error messages on the UI
+        function showError(message) {
+            jokeText.textContent = '';
+            placeholderText.classList.remove('hidden');
+            placeholderText.textContent = 'Something went wrong...';
+            errorMessageDiv.textContent = message;
+            loader.classList.add('hidden');
+        }
+
+        // Function to clear error messages
+        function clearError() {
+            errorMessageDiv.textContent = '';
+        }
+
+        // Fun typing effect for the joke
+        function typeWriter(text) {
+            let i = 0;
+            jokeText.textContent = '';
+            jokeText.classList.remove('fade-in'); // Reset animation
+            
+            function typing() {
+                if (i < text.length) {
+                    jokeText.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(typing, 20); // Adjust speed of typing here
+                } else {
+                    jokeText.classList.add('fade-in'); // Add fade-in after typing
+                }
+            }
+            typing();
+        }
+
+    </script>
+</body>
+</html>
